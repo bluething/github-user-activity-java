@@ -8,10 +8,14 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.Executors;
 
 public class Main {
     private static final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
+            // use HTTP/2, so I get connection multiplexing and header compression
+            .version(HttpClient.Version.HTTP_2)
+            .executor(Executors.newVirtualThreadPerTaskExecutor())
             .build();
 
     public static void main(String[] args) throws IOException, InterruptedException {
