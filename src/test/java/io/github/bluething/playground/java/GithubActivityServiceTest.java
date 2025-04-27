@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -16,8 +15,7 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class GithubActivityServiceTest {
     @Mock HttpClient mockHttpClient;
@@ -61,4 +59,21 @@ class GithubActivityServiceTest {
         IOException ex = assertThrows(IOException.class, () -> githubActivityService.fetchUser("nope"));
         assertTrue(ex.getMessage().contains("404"));
     }
+    @Test
+    void fetchEvents_isCached_betweenCalls() throws IOException, InterruptedException {
+        String fakeJson = "[{\"type\":\"PushEvent\",\"created_at\":\"2025-04-25T10:15:30Z\",\"repo\":{\"name\":\"foo/bar\"},"
+                + "\"payload\":{\"commits\":[{}]}}]";
+        when(mockHttpResponse.statusCode()).thenReturn(200);
+        when(mockHttpResponse.body()).thenReturn(fakeJson);
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockHttpResponse);
+
+        githubActivityService.fetchEvents("alice");
+        githubActivityService.fetchEvents("alice");
+
+        // assert: underlying HTTP send() was only called once
+        verify(mockHttpClient, times(1))
+                .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
 }
