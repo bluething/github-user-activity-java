@@ -1,6 +1,7 @@
 package io.github.bluething.playground.java;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -75,5 +77,29 @@ class GithubActivityServiceTest {
         verify(mockHttpClient, times(1))
                 .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
     }
+    @Test
+    void fetchEvents_expiresCache_afterTtl() throws Exception {
+        // build service with a cache that expires after 10ms
+        GithubActivityService svc = new GithubActivityService(
+                mockHttpClient,
+                Caffeine.newBuilder()
+                        .expireAfterWrite(10, TimeUnit.MILLISECONDS)
+                        .build()
+        );
+
+        // stub response
+        when(mockHttpResponse.statusCode()).thenReturn(200);
+        when(mockHttpResponse.body()).thenReturn("[]");
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockHttpResponse);
+
+        svc.fetchEvents("bob");           // cache miss → 1 HTTP call
+        Thread.sleep(20);                 // wait past TTL
+        svc.fetchEvents("bob");           // cache expired → 2nd HTTP call
+
+        verify(mockHttpClient, times(2))
+                .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
 
 }

@@ -15,15 +15,19 @@ import java.util.concurrent.TimeUnit;
 class GithubActivityService implements GithubActivity {
     private static final String EVENTS_URL   = "https://api.github.com/users/%s/events";
     private static final String USER_URL     = "https://api.github.com/users/%s";
-    private static final Cache<String, JsonNode> cache = Caffeine.newBuilder()
-            .expireAfterWrite(5, TimeUnit.MINUTES)
-            .maximumSize(100)
-            .build();
+    private final Cache<String, JsonNode> cache;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     GithubActivityService(HttpClient httpClient) {
+        this(httpClient, Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .maximumSize(100)
+                .build());
+    }
+    GithubActivityService(HttpClient httpClient, Cache<String, JsonNode> cache) {
         this.httpClient = httpClient;
+        this.cache = cache;
     }
 
     @Override

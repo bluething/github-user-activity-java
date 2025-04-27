@@ -1,6 +1,8 @@
 package io.github.bluething.playground.java;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import java.io.IOException;
 import java.net.http.HttpClient;
@@ -9,6 +11,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class Main {
     private static final HttpClient httpClient = HttpClient.newBuilder()
@@ -16,6 +19,10 @@ public class Main {
             // use HTTP/2, so I get connection multiplexing and header compression
             .version(HttpClient.Version.HTTP_2)
             .executor(Executors.newVirtualThreadPerTaskExecutor())
+            .build();
+    private static final Cache<String, JsonNode> cache = Caffeine.newBuilder()
+            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .maximumSize(100)
             .build();
 
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -39,7 +46,7 @@ public class Main {
             System.exit(1);
         }
 
-        GithubActivity githubActivity = new GithubActivityService(httpClient);
+        GithubActivity githubActivity = new GithubActivityService(httpClient, cache);
         printUserSummary(githubActivity.fetchUser(username));
         List<ActivityEvent> events = fetchEvents(githubActivity.fetchEvents(username), filters);
         displayTable(events);
